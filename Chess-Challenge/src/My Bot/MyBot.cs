@@ -1,4 +1,6 @@
-﻿using ChessChallenge.API;
+﻿using System;
+using System.Linq;
+using ChessChallenge.API;
 
 public class MyBot : IChessBot
 {
@@ -8,47 +10,83 @@ public class MyBot : IChessBot
 
     // First movies - rather than leave it to calculation, just take a popular one.
     // https://www.masterclass.com/articles/chess-101-what-are-the-best-opening-moves-in-chess-learn-5-tips-for-improving-your-chess-opening
-    string[] whiteFirstAttack = { "e2e4", "d2d4" }; 
-    string[] blackFirstDefence = { "c7c5" };
-    
+    // White, Black, White, etc...
+    private string[] _moveList = { "e2e4", "c7c5" };
+
+
+    private bool _playingWhite;
+    private bool _playingFromStart;
+    private string _miniMaxTree;
+
 
     public Move Think(Board board, Timer timer)
     {
-        var moves = board.GetLegalMoves();
-        var currentMove = board.GameMoveHistory.Length;
-
-        // Pick a starting move from well known starters rather than calculating anything.
-        switch (currentMove)
+        // Check init and validate side
+        if (_miniMaxTree == null)
         {
-            // Pick a move for white Attack
-            case 0:
-                return new Move(whiteFirstAttack[0], board);
-            // Pick a move for black defence
-            case 1:
-                return new Move(blackFirstDefence[0], board);
+            _playingWhite = board.IsWhiteToMove;
+            _playingFromStart = board.ZobristKey == 13227872743731781434; // ZobristKey from a Fresh Board. Got this inline because it's more compact to do inline.
+            _miniMaxTree = "";
         }
+        
+        // TODO remove this, this is just for testing to make sure nothing is going wrong. It wastes tokens space though.
+        if (_playingWhite != board.IsWhiteToMove)
+            throw new InvalidOperationException("Somehow changed side, probably reused ");
+
+        //var currentMove = board.PlyCount;
+        
+        
+        if (_playingFromStart)
+        {
+            // Pick a starting move from well known starters rather than calculating anything.
+            switch (board.PlyCount)
+            {
+                // Pick a move for white Attack
+                case 0:
+                    return new Move(_moveList[0], board);
+                // Pick a move for black defence
+                case 1:
+                    return new Move(_moveList[1], board);
+            }
+        }
+
+        var moves = board.GetLegalMoves();
 
         // Simple board value calculation, it's just looking for the highest value board at any point.
-        var values = new int[moves.Length];
-        for (var i = 0; i<values.Length; i++)
+        var scores = new int[moves.Length];
+        for (var i = 0; i<moves.Length; i++)
         {
-            var value = 0;
-            board.MakeMove(moves[i]);
-            foreach (var piece in board.GetAllPieceLists())
-            {
-                // Calc value, make sure negative value for other side pieces.
-                value += _pieceValue[(int)(piece.TypeOfPieceInList)] * (piece.IsWhitePieceList == board.IsWhiteToMove ? 1: -1);
-            }
-
-            values[i] = value;
             
+            board.MakeMove(moves[i]);
+            scores[i] = CalculateBoardValue(board);
             board.UndoMove(moves[i]);
         }
+        var maxScoreIndexOf = scores.ToList().IndexOf(scores.Max());
 
-        // TODO, find best value
-        return moves[0];
+        // Use max score
+        return moves[maxScoreIndexOf];
         
         
-        // MiniMax B-Tree structure, then add AB culling.
+        // TODO MiniMax B-Tree structure, then add AB culling.
+        // Then start getting smarter about biasing the scoring for non capture moves
+    }
+
+
+    /// <summary>
+    /// Calculate Value of board.
+    /// TODO: This probably should be inline to reduce symbols... but it's easier to test as a separate method.
+    /// </summary>
+    /// <param name="board"></param>
+    /// <returns></returns>
+    public int CalculateBoardValue(Board board)
+    {
+        var value = 0;
+        foreach (var piece in board.GetAllPieceLists())
+        {
+            // Calc value, make sure negative value for other side pieces.
+            value += _pieceValue[(int)(piece.TypeOfPieceInList)] * piece.Count * (piece.IsWhitePieceList == _playingWhite ? 1: -1);
+        }
+
+        return value;
     }
 }

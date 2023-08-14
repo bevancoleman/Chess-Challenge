@@ -14,17 +14,19 @@ public class MyBotMateInTwo
     private const int GameTimeMs = 60*1000;
     
     private Board _board;
-    private IChessBot _chessBot;
+    private IChessBot _chessBotWhite;
+    private IChessBot _chessBotBlack;
     private Timer _timer;
 
     /// <summary>
-    /// Setup before each test, this makes sure to reset to a "black" playing field before each test.
+    /// Setup before each test, this makes sure to reset to a fresh playing field before each test.
     /// </summary>
     [SetUp]
     public void SetupBeforeEachTest()
     {
         _board = Board.CreateBoardFromFEN(FenStartingBoard);
-        _chessBot = new MyBot();
+        _chessBotWhite = new MyBot();
+        _chessBotBlack = new MyBot();
         _timer = new Timer(GameTimeMs, GameTimeMs, GameTimeMs);
     }
     
@@ -38,11 +40,11 @@ public class MyBotMateInTwo
         var expectedMoveW2 = new Move("d6e7", _board);
         
         // Test (both White and Black Movies)
-        var resultMoveW1 = _chessBot.Think(_board, _timer);
+        var resultMoveW1 = _chessBotWhite.Think(_board, _timer);
         
-        var resultMoveB1 = _chessBot.Think(_board, _timer);
+        var resultMoveB1 = _chessBotBlack.Think(_board, _timer);
         
-        var resultMoveW2 = _chessBot.Think(_board, _timer);
+        var resultMoveW2 = _chessBotWhite.Think(_board, _timer);
         
         // Assert
         Assert.That(resultMoveW1, Is.EqualTo(expectedMoveW1));

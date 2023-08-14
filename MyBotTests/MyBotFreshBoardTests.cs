@@ -1,24 +1,26 @@
 using ChessChallenge.API;
+using ChessChallenge.Chess;
+using MyBotTests;
+using Board = ChessChallenge.API.Board;
 using Timer = ChessChallenge.API.Timer;
 
 [TestFixture]
 public class MyBotFreshBoardTests
 {
-    private const string FenStartingBoard = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     private const int GameTimeMs = 60*1000;
     
     private Board _board;
-    private IChessBot _chessBot;
+    private IChessBot _chessBotWhite;
     private Timer _timer;
 
     /// <summary>
-    /// Setup before each test, this makes sure to reset to a "black" playing field before each test.
+    /// Setup before each test, this makes sure to reset to a fresh playing field before each test.
     /// </summary>
     [SetUp]
     public void SetupBeforeEachTest()
     {
-        _board = Board.CreateBoardFromFEN(FenStartingBoard);
-        _chessBot = new MyBot();
+        _board = Board.CreateBoardFromFEN(FenUtility.StartPositionFEN);
+        _chessBotWhite = new MyBot();
         _timer = new Timer(GameTimeMs, GameTimeMs, GameTimeMs);
     }
     
@@ -27,12 +29,13 @@ public class MyBotFreshBoardTests
     public void WhiteFirstMove_UseBestByTest()
     {
         // Expect
-        var expectedMoveW1 = new Move("e2e4", _board);
-        
+       
         // Test
-        var resultMove = _chessBot.Think(_board, _timer);
+        var resultMove = _chessBotWhite.Think(_board, _timer);
         
         // Assert
-        Assert.That(resultMove, Is.EqualTo(expectedMoveW1));
+        Assert.That(TestHelpers.IsLegalMove(_board, resultMove), Is.True);
+        Assert.That(resultMove.StartSquare.Name, Is.EqualTo("e2"));
+        Assert.That(resultMove.TargetSquare.Name, Is.EqualTo("e4"));
     }
 }
