@@ -34,6 +34,9 @@ public class MyBotMateInTwo
     [Test]
     public void WhiteToMove_CheckInTwo()
     {
+        //TODO... this isn't working correctly... this isn't how it runs a game :(
+        
+        
         // Expected Moves (using Stockfish 16 from Chess.com)
         var expectedMoveW1 = new Move("f2f6", _board);
         var expectedMoveB1 = new Move("g8f6", _board);
@@ -41,10 +44,13 @@ public class MyBotMateInTwo
         
         // Test (both White and Black Movies)
         var resultMoveW1 = _chessBotWhite.Think(_board, _timer);
+        _board.MakeMove(resultMoveW1);
         
         var resultMoveB1 = _chessBotBlack.Think(_board, _timer);
+        _board.MakeMove(resultMoveB1);
         
         var resultMoveW2 = _chessBotWhite.Think(_board, _timer);
+        _board.MakeMove(resultMoveW2);
         
         // Assert
         Assert.That(resultMoveW1, Is.EqualTo(expectedMoveW1));

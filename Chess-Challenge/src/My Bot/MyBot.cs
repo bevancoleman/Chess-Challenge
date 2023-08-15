@@ -15,39 +15,46 @@ public class MyBot : IChessBot
     // White, Black, White, etc...
     private string[] _moveList = { "e2e4", "c7c5" };
 
+    
+    
     private bool _playingWhite;
     private bool _playingFromStart;
     private TreeNode _treeRoot;
     private ulong? _startZobristKey;
+    
+    private const int MaxDepth = 2;
+
+
+    private Dictionary<ulong, int> _scoreCache = new();
 
     public class TreeNode : IEnumerable<TreeNode>
     {
-        private readonly Dictionary<ulong, TreeNode> _children = new();
+        private readonly Dictionary<Move, TreeNode> _children = new();
 
-        public readonly ulong ZobristKey; // ID
-        public int Score;
-        
+        public readonly Move Move; //ID
+        public readonly ulong ZobristKey;
+       
         public TreeNode Parent { get; private set; }
 
-        public TreeNode(ulong zobristKey)
+        public TreeNode(Move move, ulong zobristKey)
         {
-            this.ZobristKey = zobristKey;
+            Move = move;
+            ZobristKey = zobristKey;
         }
 
-        public TreeNode GetChild(ulong zobristKey)
+        public TreeNode GetChild(Move move)
         {
-            return _children[zobristKey];
+            return _children[move];
         }
 
         public void Add(TreeNode item)
         {
             if (item.Parent != null)
             {
-                item.Parent._children.Remove(item.ZobristKey);
+                item.Parent._children.Remove(item.Move);
             }
-
             item.Parent = this;
-            _children.Add(item.ZobristKey, item);
+            _children.Add(item.Move, item);
         }
 
         public IEnumerator<TreeNode> GetEnumerator()
@@ -61,7 +68,6 @@ public class MyBot : IChessBot
         }
         
         public int Count => _children.Count;
-
     }
 
     public Move Think(Board board, Timer timer)
@@ -92,38 +98,90 @@ public class MyBot : IChessBot
             }
         }
         
-        //var currentMove = board.PlyCount;
-        
-        // Otherwise Start Calculating moves
-        
         // Start by making sure we have our root
         if (_treeRoot == null)
         {
-            _treeRoot = new TreeNode(board.ZobristKey)
-            {
-                Score = CalculateBoardValue(board)
-            };
+            _scoreCache.Add(board.ZobristKey, CalculateBoardValue(board, _playingWhite));
+            _treeRoot = new TreeNode(Move.NullMove, board.ZobristKey);
         }
-
-        var moves = board.GetLegalMoves();
-
-        // Simple board value calculation, it's just looking for the highest value board at any point.
-        var scores = new int[moves.Length];
-        for (var i = 0; i<moves.Length; i++)
+        else
         {
-            
-            board.MakeMove(moves[i]);
-            scores[i] = CalculateBoardValue(board);
-            board.UndoMove(moves[i]);
+            // Update tree to point to opposition move... we dont' care about paths not taken or history (we can get that from the board anyway)
+            _treeRoot = _treeRoot.GetChild(board.GameMoveHistory.Last());
         }
-        var maxScoreIndexOf = scores.ToList().IndexOf(scores.Max());
+        
+        // Update Tree, this should reuse the tree and add depth
+        GenerateMoves(board, _treeRoot, MaxDepth, _playingWhite);
 
-        // Use max score
-        return moves[maxScoreIndexOf];
+        // Find move
+        var pickedMove = Move.NullMove;
+        var maxScore = int.MinValue;
+        foreach (var child in _treeRoot)
+        {
+            var score = Minimax(child, MaxDepth, true);
+            if (score > maxScore)
+            {
+                maxScore = score;
+                pickedMove = child.Move;
+            }
+        }
+
+        if (pickedMove.Equals(Move.NullMove))
+            throw new InvalidOperationException("Unable to pick a valid move????");
+
+        // Update TreeRoot to move taken;
+        _treeRoot = _treeRoot.GetChild(pickedMove);
         
+        // Return move
+        return pickedMove;
+    }
+
+    public void GenerateMoves(Board board, TreeNode parentNode, int depth, bool playingWhite)
+    {
+        // Hit max depth, abort
+        if (depth == 0)
+            return;
         
-        // TODO MiniMax B-Tree structure, then add AB culling.
-        // Then start getting smarter about biasing the scoring for non capture moves
+        // No Children (yet?)
+        if (parentNode.Count == 0)
+        {
+            var moves = board.GetLegalMoves();
+            var maxChildScore = int.MinValue;
+            
+            foreach (var move in moves)
+            {
+                // Try Move
+                board.MakeMove(move);
+                
+                var checkmate = board.IsInCheckmate();                
+                
+                // Calculate score if we don't already know it.
+                int moveScore;
+                if (!_scoreCache.ContainsKey(board.ZobristKey))
+                {
+                    moveScore = CalculateBoardValue(board, playingWhite);
+                    _scoreCache.Add(board.ZobristKey, moveScore);
+                }
+
+                var childNode = new TreeNode(move, board.ZobristKey);
+                parentNode.Add(childNode);
+
+                // Check if it's worth going on. The game stops at checkmate... so no point going past this!
+                // TODO Consider how to prune out worthless trees at this point and not continue to explore
+                if (!checkmate)
+                {
+                    GenerateMoves(board, childNode, depth - 1, playingWhite);
+                }
+
+                // Undo move
+                board.UndoMove(move);
+            }
+        }
+    }
+
+    static string MoveName(Move move)
+    {
+        return $"{move.StartSquare.Name}{move.TargetSquare.Name}";
     }
 
     /// <summary>
@@ -135,10 +193,10 @@ public class MyBot : IChessBot
     /// <returns></returns>
     public int Minimax(TreeNode node, int depth, bool maximizingPlayer)
     {
-        if (depth == 0 || node.Count == 0)
+        if (depth == 0 || node.Count == 0)  // At max depth, or hit a leaf
         {
             // TODO: This assumes each leaf-node has a score generated.
-            return node.Score;
+            return _scoreCache[node.ZobristKey];
         }
 
         int value;
@@ -164,13 +222,13 @@ public class MyBot : IChessBot
     /// </summary>
     /// <param name="board"></param>
     /// <returns></returns>
-    public int CalculateBoardValue(Board board)
+    public int CalculateBoardValue(Board board, bool playingWhite)
     {
         var value = 0;
         foreach (var piece in board.GetAllPieceLists())
         {
             // Calc value, make sure negative value for other side pieces.
-            value += _pieceValue[(int)(piece.TypeOfPieceInList)] * piece.Count * (piece.IsWhitePieceList == _playingWhite ? 1: -1);
+            value += _pieceValue[(int)(piece.TypeOfPieceInList)] * piece.Count * (piece.IsWhitePieceList == playingWhite ? 1: -1);
         }
 
         return value;

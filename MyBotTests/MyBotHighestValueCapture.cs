@@ -39,18 +39,17 @@ public class MyBotHighestValueCapture
         Assert.That(resultMove.CapturePieceType, Is.EqualTo(PieceType.Rook));
     }
     
+    /// <summary>
+    /// Test to check board value generation.
+    /// </summary>
     [Test]
     public void WhiteFirstMove_CalculateValue_StartingBoard()
     {
         // Expect
         const int expectedValue = -70; // Playing White, White(Pawn=10) - Black(Bishop=30, Rook=50)
         
-        // Pre-Test
-        // Need to think once so it can set it's self up. We will ignore this however.
-        _chessBotWhite.Think(_board, _timer);
-        
         // Test
-        var resultValue = ((MyBot)_chessBotWhite).CalculateBoardValue(_board);
+        var resultValue = ((MyBot)_chessBotWhite).CalculateBoardValue(_board, true);
         
         // Assert
         Assert.That(resultValue, Is.EqualTo(expectedValue));
@@ -67,12 +66,7 @@ public class MyBotHighestValueCapture
             { "d5d6", -70},
             { "d5e6", -40}
         };
-
         
-        // Pre-Test
-        // Need to think once so it can set it's self up. We will ignore this however.
-        _chessBotWhite.Think(_board, _timer);
-            
         // Test
         var moves = _board.GetLegalMoves();
 
@@ -81,11 +75,12 @@ public class MyBotHighestValueCapture
         {
             var moveKey = TestHelpers.GenerateMoveName(move);
             _board.MakeMove(move);
-            var value =  ((MyBot)_chessBotWhite).CalculateBoardValue(_board);
+            var value =  ((MyBot)_chessBotWhite).CalculateBoardValue(_board, true);
             _board.UndoMove(move);
 
             resultValues.Add(moveKey, value);
         }
+        
         // Assert
         Assert.That(moves.Length, Is.EqualTo(3));
         Assert.That(expectedValues.Keys, Is.EquivalentTo(resultValues.Keys));
