@@ -1,5 +1,6 @@
 using ChessChallenge.API;
-using Timer = ChessChallenge.API.Timer;
+using ChessChallenge.Chess;
+using MyBotTests;
 
 /// <summary>
 /// Mate in Two puzzle
@@ -12,11 +13,10 @@ public class MyBotMateInTwo
 {
     private const string FenStartingBoard = "r1bk2nr/p2p1pNb/n2B4/1p1NP2P/6P1/3P1Q2/P1P1K3/q5b1 w - - 0 1";
     private const int GameTimeMs = 60*1000;
-    
-    private Board _board;
+
+    private TestChallengeController _testChallengeController;
     private IChessBot _chessBotWhite;
     private IChessBot _chessBotBlack;
-    private Timer _timer;
 
     /// <summary>
     /// Setup before each test, this makes sure to reset to a fresh playing field before each test.
@@ -24,46 +24,30 @@ public class MyBotMateInTwo
     [SetUp]
     public void SetupBeforeEachTest()
     {
-        _board = Board.CreateBoardFromFEN(FenStartingBoard);
+        _testChallengeController = new TestChallengeController(FenStartingBoard, GameTimeMs);
         _chessBotWhite = new MyBot();
         _chessBotBlack = new MyBot();
-        _timer = new Timer(GameTimeMs, GameTimeMs, GameTimeMs);
     }
-    
 
     [Test]
     public void WhiteToMove_CheckInTwo()
     {
-        //TODO... this isn't working correctly... this isn't how it runs a game :(
+        // Expected Moves (using Stockfish 16 from Chess.com) for Mate-in-two
+        string[] expectedMoved = { "f3f6", "g8f6", "d6e7" };
+
+        // Test (both White and Black Movies) and Assert
+        string[] resultMoved = new string[expectedMoved.Length];
         
+        var resultMoveW1 = _testChallengeController.MakeBotMove(_chessBotWhite);
+        resultMoved[0] = MoveUtility.GetMoveNameUCI(resultMoveW1); 
         
-        // Expected Moves (using Stockfish 16 from Chess.com)
-        var expectedMoveW1 = new Move("f2f6", _board);
-        var expectedMoveB1 = new Move("g8f6", _board);
-        var expectedMoveW2 = new Move("d6e7", _board);
+        var resultMoveB1 = _testChallengeController.MakeBotMove(_chessBotBlack);
+        resultMoved[1] = MoveUtility.GetMoveNameUCI(resultMoveB1);
         
-        // Test (both White and Black Movies)
-        var resultMoveW1 = _chessBotWhite.Think(_board, _timer);
-        _board.MakeMove(resultMoveW1);
-        
-        var resultMoveB1 = _chessBotBlack.Think(_board, _timer);
-        _board.MakeMove(resultMoveB1);
-        
-        var resultMoveW2 = _chessBotWhite.Think(_board, _timer);
-        _board.MakeMove(resultMoveW2);
+        var resultMoveW2 = _testChallengeController.MakeBotMove(_chessBotWhite);
+        resultMoved[2] = MoveUtility.GetMoveNameUCI(resultMoveW2);
         
         // Assert
-        Assert.That(resultMoveW1, Is.EqualTo(expectedMoveW1));
-        Assert.That(resultMoveW1.IsCapture, Is.False);
-        
-        Assert.That(resultMoveB1, Is.EqualTo(expectedMoveB1));
-        Assert.That(resultMoveB1.IsCapture, Is.True);
-        Assert.That(resultMoveB1.CapturePieceType, Is.EqualTo(PieceType.Queen));
-        
-        Assert.That(resultMoveW2, Is.EqualTo(expectedMoveW2));
-        Assert.That(resultMoveW2.IsCapture, Is.False);
-        Assert.That(_board.IsInCheckmate, Is.True);
-        
-        
+        Assert.That(resultMoved, Is.EquivalentTo(expectedMoved));
     }
 }

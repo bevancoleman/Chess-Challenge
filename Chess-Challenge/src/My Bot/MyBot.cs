@@ -22,7 +22,7 @@ public class MyBot : IChessBot
     private TreeNode _treeRoot;
     private ulong? _startZobristKey;
     
-    private const int MaxDepth = 2;
+    private const int MaxDepth = 4;
 
 
     private Dictionary<ulong, int> _scoreCache = new();
