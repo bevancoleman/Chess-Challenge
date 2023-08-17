@@ -3,7 +3,7 @@ using MyBotTests;
 using Timer = ChessChallenge.API.Timer;
 
 [TestFixture]
-public class MyBotHighestValueCapture
+public class MyBotHighestValueCaptureTests
 {
     private const string FenStartingBoard = "8/8/2r1b3/3P4/8/8/8/8 w - - 0 1";  //https://www.chess.com/analysis?tab=analysis
     private const int GameTimeMs = 60*1000;

@@ -9,7 +9,7 @@ using MyBotTests;
 ///   - https://www.chess.com/analysis?tab=analysis
 /// </summary>
 [TestFixture]
-public class MyBotMateInTwo
+public class MyBotMateInTwoTests
 {
     private const string FenStartingBoard = "r1bk2nr/p2p1pNb/n2B4/1p1NP2P/6P1/3P1Q2/P1P1K3/q5b1 w - - 0 1";
     private const int GameTimeMs = 60*1000;
